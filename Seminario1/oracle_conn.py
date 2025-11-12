@@ -1,0 +1,225 @@
+from datetime import date
+from datetime import datetime
+from os import getenv
+from dotenv import load_dotenv
+import oracledb
+import sys
+load_dotenv()
+
+# Solicitar al usuario si desea conectarse a la base de datos
+respuesta = input("¿Desea conectar a la base de datos? (s/n): ")
+conn = None
+cursor = None
+
+if respuesta.lower() == 's':
+    try:
+        # Configuración de la conexión
+        username = getenv("DB_USER")
+        password = getenv("DB_PASSWORD")
+        dsn = getenv("DB_DSN")
+        
+        if not all([username, password, dsn]):
+            raise ValueError("Faltan variables de entorno necesarias (DB_USER, DB_PASSWORD, DB_DSN)")
+        
+        # Establecer la conexión
+        conn = oracledb.connect(
+            user=username,
+            password=password,
+            dsn=dsn
+        )
+        print("Conexión establecida exitosamente")
+    except Exception as e:
+        print(f"Error al conectar a la base de datos: {e}")
+        sys.exit(1)
+else:
+    print("Conexión a la base de datos cancelada por el usuario.")
+
+# Informar sobre la creación de las tablas
+respuesta_tabla = input("\nSe crearán las tablas Stock, Pedido, Detalle_Pedido. Presiona Enter para continuar...")
+if conn:
+    try:
+        cursor = conn.cursor()
+        
+        # Se elimina Detalle_Pedido si existe
+        cursor.execute("SELECT COUNT(*) FROM USER_TABLES WHERE TABLE_NAME = 'DETALLE_PEDIDO'")
+        if cursor.fetchone()[0] > 0:
+            cursor.execute("DROP TABLE Detalle_Pedido PURGE")
+            print("Tabla 'Detalle_Pedido' eliminada")
+
+        # Se elimina Stock si existe
+        cursor.execute("SELECT COUNT(*) FROM USER_TABLES WHERE TABLE_NAME = 'STOCK'")
+        if cursor.fetchone()[0] > 0:
+            cursor.execute("DROP TABLE Stock PURGE")
+            print("Tabla 'Stock' eliminada")
+
+        # Se elimina Pedido si existe
+        cursor.execute("SELECT COUNT(*) FROM USER_TABLES WHERE TABLE_NAME = 'PEDIDO'")
+        if cursor.fetchone()[0] > 0:
+            cursor.execute("DROP TABLE Pedido PURGE")
+            print("Tabla 'Pedido' eliminada")
+
+        # Crea la tabla Stock
+        cursor.execute("CREATE TABLE Stock (Cproducto INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY, Cantidad INTEGER)")
+        print("Tabla 'Stock' creada exitosamente")
+
+        # Crea la tabla Pedido
+        cursor.execute("CREATE TABLE Pedido (Cpedido INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY, Ccliente INTEGER, Fecha_Pedido DATE)")
+        print("Tabla 'Pedido' creada exitosamente")
+
+        # Crea la tabla Detalle_Pedido
+        cursor.execute("""CREATE TABLE Detalle_Pedido (
+            Cpedido INTEGER,
+            Cproducto INTEGER,
+            Cantidad INTEGER,
+            PRIMARY KEY (Cpedido, Cproducto),
+            FOREIGN KEY (Cpedido) REFERENCES Pedido(Cpedido),
+            FOREIGN KEY (Cproducto) REFERENCES Stock(Cproducto)
+        )""")
+        print("Tabla 'Detalle_Pedido' creada exitosamente")
+        
+    except oracledb.DatabaseError as e:
+        error, = e.args
+        print(f"Error en la operación de la base de datos: {e}")
+else:
+    print("No se pudo crear el cursor, ni las tablas.")
+
+# Insertar 10 tuplas en la tabla Stock
+if conn and cursor:
+    try:
+        for i in range(10):
+            cantidad = (i+1)*10
+            cursor.execute("INSERT INTO Stock (Cantidad) VALUES (:valores)", valores=cantidad)
+        conn.commit()
+        print("10 tuplas insertadas en la tabla Stock exitosamente")
+    except Exception as e:
+        print(f"Error al insertar datos en la tabla Stock: {e}")
+
+# Crear Pedido
+cursor.execute("SAVEPOINT antes_pedido")
+respuesta_pedido = input("\n¿Desea crear un nuevo pedido? (s/n):")
+if respuesta_pedido.lower() == 's' and conn and cursor:
+    try:
+        ccliente = int(input("Ingrese el código del cliente: "))
+        fecha_pedido = datetime.now()
+        cursor.execute("INSERT INTO Pedido (Ccliente, Fecha_Pedido) VALUES (:ccliente, :fecha_pedido)", ccliente=ccliente, fecha_pedido=fecha_pedido)
+        #conn.commit()
+        print("Nuevo pedido creado exitosamente")
+    except Exception as e:
+        print(f"Error al crear un nuevo pedido: {e}")
+        
+# SAVEPOINT antes de insertar en Detalle_Pedido y OPCIONES de ejecucion
+if conn and cursor:
+    cursor.execute("SAVEPOINT antes_detalle_pedido")
+    try:
+        while True:
+            opciones_input = int(input("INGRESE UNA OPCION: \n  1 - Añadir detalle de producto \n  2 - Eliminar detalles de producto \n  3 - Cancelar Pedido \n  4 - Finalizar Pedido \nRespuesta: "))
+            while opciones_input not in [1, 2, 3, 4]:
+                print("Opción no válida. Intente de nuevo.")
+                opciones_input = int(input("INGRESE UNA OPCION: \n  1 - Añadir detalle de producto \n  2 - Eliminar detalles de producto \n  3 - Cancelar Pedido \n  4 - Finalizar Pedido \nRespuesta: "))
+            switcher = {
+                1: "Añadir detalle de producto",
+                2: "Eliminar detalles de producto",
+                3: "Cancelar Pedido",
+                4: "Finalizar Pedido"
+            }
+            if opciones_input in switcher:
+                print(f"Ejecutando la opción: {switcher[opciones_input]}")
+                if opciones_input == 1:
+                    # Visualizar los productos disponibles en Stock
+                    try:
+                        print("\nProductos disponibles en Stock:")
+                        cursor.execute("SELECT Cproducto, Cantidad FROM Stock")
+                        productos = cursor.fetchall()
+                        for producto in productos:
+                            print(f"  - Cproducto: {producto[0]}, Cantidad disponible: {producto[1]}")
+                        print("")
+
+                        # Introducir y Verificar si el producto existe
+                        articulo = int(input("Ingrese el código del producto a añadir: "))
+                        cursor.execute("SELECT COUNT(*) FROM Stock WHERE Cproducto = :1", [articulo])
+                        if cursor.fetchone()[0] == 0:
+                            while True:
+                                print("El producto no existe. Seleccione otro producto.")
+                                articulo = int(input("Ingrese el código del producto a añadir: "))
+                                cursor.execute("SELECT COUNT(*) FROM Stock WHERE Cproducto = :1", [articulo])
+                                if cursor.fetchone()[0] > 0:
+                                    break
+                        else:
+                            print("Producto encontrado en Stock.")
+                        
+                        # Introducir y Verificar si hay suficiente stock
+                        cantidad_solicitada = int(input("Ingrese la cantidad a añadir: "))
+                        cursor.execute("SELECT Cantidad FROM Stock WHERE Cproducto = :1", [articulo])
+                        resultado = cursor.fetchone()
+                        if resultado[0] < cantidad_solicitada:
+                            while resultado[0] < cantidad_solicitada:
+                                print("No hay suficiente stock para este producto, Seleccione otra cantidad o producto.")
+                                cantidad_solicitada = int(input("Ingrese la cantidad a añadir: "))
+                        else:
+                            print("Cantidad disponible en stock.")
+
+                        # Verifica si el producto ya está en Detalle_Pedido
+                        cursor2 = conn.cursor()
+                        cursor2.execute("SELECT COUNT(*) FROM Detalle_Pedido WHERE Cproducto = :1", [articulo])
+                        if cursor2.fetchone()[0] > 0:
+                            # Actualizar Cantidad en Detalle_Pedido
+                            cursor.execute("SELECT Cpedido FROM Pedido WHERE Ccliente = :1 ORDER BY Fecha_Pedido DESC", [ccliente])
+                            pedido_id = cursor.fetchone()[0]
+                            cursor2.execute("UPDATE Detalle_Pedido SET Cantidad = Cantidad + :1 WHERE Cpedido = :3 AND Cproducto = :2", [cantidad_solicitada, articulo, pedido_id])
+                            #conn.commit()
+                            print("Cantidad actualizada en Detalle_Pedido.")
+                            # Actualizar Stock
+                            cursor.execute("UPDATE Stock SET Cantidad = Cantidad - :1 WHERE Cproducto = :2", [cantidad_solicitada, articulo])
+                            #conn.commit()
+                            print("Detalle de pedido añadido exitosamente.")
+                        else:
+                            # Insertar en Detalle_Pedido
+                            cursor.execute("SELECT Cpedido FROM Pedido WHERE Ccliente = :1 ORDER BY Fecha_Pedido DESC", [ccliente])
+                            pedido_id = cursor.fetchone()[0]
+                            cursor.execute("INSERT INTO Detalle_Pedido (Cpedido, Cproducto, Cantidad) VALUES (:1, :2, :3)", [pedido_id, articulo, cantidad_solicitada])
+                            #conn.commit()
+                            # Actualizar Stock
+                            cursor.execute("UPDATE Stock SET Cantidad = Cantidad - :1 WHERE Cproducto = :2", [cantidad_solicitada, articulo])
+                            #conn.commit()
+                            print("Detalle de pedido añadido exitosamente.")
+                    except Exception as e:
+                        print(f"Error al recuperar productos de Stock: {e}")
+                if opciones_input == 2:
+                    try:
+                        #Eliminar Detalles de pedido en Detalle_Pedido (HACER UN ROLLBACK A SAVEPOINT ANTES_DETALLE_PEDIDO???)
+                        cursor.execute("ROLLBACK TO antes_detalle_pedido")
+                        conn.rollback()
+                        print("Detalles de pedido eliminados exitosamente mediante ROLLBACK al savepoint.")
+                        
+                    except Exception as e:
+                        print(f"Error al eliminar detalle de pedido: {e}")
+                # Opciones 3 y 4 que salen del bucle
+                if opciones_input == 3:
+                    cursor.execute("ROLLBACK TO antes_pedido")
+                    conn.rollback()
+                    print("Pedido cancelado mediante ROLLBACK al savepoint.")
+                    break
+                if opciones_input == 4:
+                    conn.commit()
+                    break
+    except Exception as e:
+        print(f"Error al crear el savepoint: {e}")
+
+
+
+
+# Esperar a que el usuario presione Enter antes de finalizar
+finalizacion = input("\nPresione Enter para finalizar todas las operaciones...")
+print(finalizacion)
+# Cerrar el cursor
+if cursor:
+    cursor.close()
+    print("Cursor cerrado")
+else:
+    print("No se creó ningún cursor para cerrar.")
+# Cerrar la conexión
+if conn:
+    conn.close()
+    print("Conexión cerrada")
+else:
+    print("No se estableció ninguna conexión a cerrar.")
