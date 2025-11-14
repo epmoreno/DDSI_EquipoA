@@ -6,12 +6,15 @@ import oracledb
 import sys
 load_dotenv()
 
-# Solicitar al usuario si desea conectarse a la base de datos
 respuesta = input("¿Desea conectar a la base de datos? (s/n): ")
 conn = None
 cursor = None
+flag_in_menu = False
+flag_in_opcion = False
+ccliente = None
+fecha_pedido = None
 
-if respuesta.lower() == 's':
+def connect_to_db(conn):
     try:
         # Configuración de la conexión
         username = getenv("DB_USER")
@@ -28,15 +31,28 @@ if respuesta.lower() == 's':
             dsn=dsn
         )
         print("Conexión establecida exitosamente")
+        return conn
     except Exception as e:
         print(f"Error al conectar a la base de datos: {e}")
         sys.exit(1)
-else:
-    print("Conexión a la base de datos cancelada por el usuario.")
 
-# Informar sobre la creación de las tablas
-respuesta_tabla = input("\nSe crearán las tablas Stock, Pedido, Detalle_Pedido. Presiona Enter para continuar...")
-if conn:
+def disconnect_from_db(conn):
+    try:
+        if conn:
+            conn.close()
+            print("Conexión cerrada exitosamente")
+    except Exception as e:
+        print(f"Error al desconectar de la base de datos: {e}")
+
+def disconnect_cursor(cursor):
+    try:
+        if cursor:
+            cursor.close()
+            print("Cursor cerrado exitosamente")
+    except Exception as e:
+        print(f"Error al cerrar el cursor: {e}")
+
+def create_tables(conn):
     try:
         cursor = conn.cursor()
         
@@ -76,42 +92,102 @@ if conn:
             FOREIGN KEY (Cproducto) REFERENCES Stock(Cproducto)
         )""")
         print("Tabla 'Detalle_Pedido' creada exitosamente")
-        
+        # Devolver el cursor para uso posterior
+        return cursor
     except oracledb.DatabaseError as e:
-        error, = e.args
         print(f"Error en la operación de la base de datos: {e}")
-else:
-    print("No se pudo crear el cursor, ni las tablas.")
+        return None
 
-# Insertar 10 tuplas en la tabla Stock
-if conn and cursor:
+def create_tublas_stock(conn, cursor):
     try:
         for i in range(10):
             cantidad = (i+1)*10
-            cursor.execute("INSERT INTO Stock (Cantidad) VALUES (:valores)", valores=cantidad)
+            cursor.execute("INSERT INTO Stock (Cantidad) VALUES (:1)", [cantidad])
         conn.commit()
         print("10 tuplas insertadas en la tabla Stock exitosamente")
     except Exception as e:
         print(f"Error al insertar datos en la tabla Stock: {e}")
 
+def create_Pedido(ccliente, fecha_pedido):
+    try:
+        ccliente = int(input("Ingrese el código del cliente: "))
+        fecha_pedido = datetime.now()
+        id_var = cursor.var(int)
+        sql = "INSERT INTO Pedido (Ccliente, Fecha_Pedido) VALUES (:ccliente, :fecha_pedido) RETURNING Cpedido INTO :id_var"
+        cursor.execute(sql, ccliente=ccliente, fecha_pedido=fecha_pedido, id_var=id_var)
+        print("Nuevo pedido creado exitosamente")
+        return id_var.getvalue()[0]
+    except Exception as e:
+        print(f"Error al crear un nuevo pedido: {e}")
+        return None
+
+def check_tables():
+    print("\n| \tCproducto\t| \tCantidad \t|\n")
+    if cursor:
+        cursor.execute("SELECT * FROM Stock")
+        productos = cursor.fetchall()
+        for producto in productos:
+            print(f"|  - Cproducto: {producto[0]}, Cantidad disponible: {producto[1]}\t|")
+    
+        print("")
+    else:
+        print("No se pudo mostrar las tablas debido a problemas de cursor.")
+
+    print("\n| \tCpedido\t| \tCcliente\t| \tFecha_Pedido\t|\n")
+    if cursor:
+        cursor.execute("SELECT * FROM Pedido")
+        pedidos = cursor.fetchall()
+        for pedido in pedidos:
+            print(f"|  - Cpedido: {pedido[0]}, Ccliente: {pedido[1]}, Fecha_Pedido: {pedido[2]}\t|")
+        print("")
+    else:
+        print("No se pudo mostrar las tablas debido a problemas de cursor.")
+
+    print("\n| \tCpedido\t| \tCproducto\t| \tCantidad\t|\n")
+    if cursor:
+        cursor.execute("SELECT * FROM Detalle_Pedido")
+        detalles = cursor.fetchall()
+        for detalle in detalles:
+            print(f"|  - Cpedido: {detalle[0]}, Cproducto: {detalle[1]}, Cantidad: {detalle[2]}\t|")
+        print("")
+    else:
+        print("No se pudo mostrar las tablas debido a problemas de cursor.")
+
+    return None
+
+## Solicitar al usuario si desea conectarse a la base de datos
+if respuesta.lower() == 's':
+    conn = connect_to_db(conn)
+else:
+    print("Conexión a la base de datos cancelada por el usuario.")
+
+## Informar sobre la creación de las tablas
+respuesta_tabla = input("\nSe crearán las Tablas de Datos. Presiona Enter para continuar...")
+if conn:
+    cursor = create_tables(conn)
+else:
+    print("No se pudo crear el cursor, ni las tablas.")
+
+## Insertar 10 tuplas en la tabla Stock
+if conn and cursor:
+   create_tublas_stock(conn, cursor)
+else:
+    print("No se pudo insertar datos en la tabla Stock debido a problemas de conexión o cursor.")
+
 # Crear Pedido
 cursor.execute("SAVEPOINT antes_pedido")
 respuesta_pedido = input("\n¿Desea crear un nuevo pedido? (s/n):")
 if respuesta_pedido.lower() == 's' and conn and cursor:
-    try:
-        ccliente = int(input("Ingrese el código del cliente: "))
-        fecha_pedido = datetime.now()
-        cursor.execute("INSERT INTO Pedido (Ccliente, Fecha_Pedido) VALUES (:ccliente, :fecha_pedido)", ccliente=ccliente, fecha_pedido=fecha_pedido)
-        #conn.commit()
-        print("Nuevo pedido creado exitosamente")
-    except Exception as e:
-        print(f"Error al crear un nuevo pedido: {e}")
+    id_pedido = create_Pedido(ccliente, fecha_pedido)
+    print(f"ID del nuevo pedido creado: {id_pedido}")
+else:
+    print("No se pudo crear un nuevo pedido debido a problemas de conexión o cursor.")
         
 # SAVEPOINT antes de insertar en Detalle_Pedido y OPCIONES de ejecucion
 if conn and cursor:
     cursor.execute("SAVEPOINT antes_detalle_pedido")
     try:
-        while True:
+        while flag_in_opcion == False:
             opciones_input = int(input("INGRESE UNA OPCION: \n  1 - Añadir detalle de producto \n  2 - Eliminar detalles de producto \n  3 - Cancelar Pedido \n  4 - Finalizar Pedido \nRespuesta: "))
             while opciones_input not in [1, 2, 3, 4]:
                 print("Opción no válida. Intente de nuevo.")
@@ -190,6 +266,8 @@ if conn and cursor:
                         cursor.execute("ROLLBACK TO antes_detalle_pedido")
                         conn.rollback()
                         print("Detalles de pedido eliminados exitosamente mediante ROLLBACK al savepoint.")
+
+                        check_tables()
                         
                     except Exception as e:
                         print(f"Error al eliminar detalle de pedido: {e}")
@@ -201,6 +279,7 @@ if conn and cursor:
                     break
                 if opciones_input == 4:
                     conn.commit()
+                    print("Pedido finalizado y cambios guardados mediante COMMIT.")
                     break
     except Exception as e:
         print(f"Error al crear el savepoint: {e}")
@@ -211,15 +290,7 @@ if conn and cursor:
 # Esperar a que el usuario presione Enter antes de finalizar
 finalizacion = input("\nPresione Enter para finalizar todas las operaciones...")
 print(finalizacion)
-# Cerrar el cursor
-if cursor:
-    cursor.close()
-    print("Cursor cerrado")
-else:
-    print("No se creó ningún cursor para cerrar.")
-# Cerrar la conexión
-if conn:
-    conn.close()
-    print("Conexión cerrada")
-else:
-    print("No se estableció ninguna conexión a cerrar.")
+
+# Cerrar el cursor y Conexion:
+disconnect_cursor(cursor)
+disconnect_from_db(conn)
