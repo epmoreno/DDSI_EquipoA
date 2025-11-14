@@ -6,7 +6,6 @@ import oracledb
 import sys
 load_dotenv()
 
-respuesta = input("¿Desea conectar a la base de datos? (s/n): ")
 conn = None
 cursor = None
 flag_in_menu = False
@@ -30,7 +29,7 @@ def connect_to_db(conn):
             password=password,
             dsn=dsn
         )
-        print("Conexión establecida exitosamente")
+        print("\nConexión establecida exitosamente")
         return conn
     except Exception as e:
         print(f"Error al conectar a la base de datos: {e}")
@@ -155,142 +154,156 @@ def check_tables():
 
     return None
 
-## Solicitar al usuario si desea conectarse a la base de datos
-if respuesta.lower() == 's':
-    conn = connect_to_db(conn)
-else:
-    print("Conexión a la base de datos cancelada por el usuario.")
+## Conectandose a la base de datos
+conn = connect_to_db(conn)
 
-## Informar sobre la creación de las tablas
-respuesta_tabla = input("\nSe crearán las Tablas de Datos. Presiona Enter para continuar...")
 if conn:
-    cursor = create_tables(conn)
-else:
-    print("No se pudo crear el cursor, ni las tablas.")
-
-## Insertar 10 tuplas en la tabla Stock
-if conn and cursor:
-   create_tublas_stock(conn, cursor)
-else:
-    print("No se pudo insertar datos en la tabla Stock debido a problemas de conexión o cursor.")
-
-# Crear Pedido
-cursor.execute("SAVEPOINT antes_pedido")
-respuesta_pedido = input("\n¿Desea crear un nuevo pedido? (s/n):")
-if respuesta_pedido.lower() == 's' and conn and cursor:
-    id_pedido = create_Pedido(ccliente, fecha_pedido)
-    print(f"ID del nuevo pedido creado: {id_pedido}")
-else:
-    print("No se pudo crear un nuevo pedido debido a problemas de conexión o cursor.")
-        
-# SAVEPOINT antes de insertar en Detalle_Pedido y OPCIONES de ejecucion
-if conn and cursor:
-    cursor.execute("SAVEPOINT antes_detalle_pedido")
+    cursor = conn.cursor()
+    cursor.execute("SAVEPOINT principal")
+    opciones_input = None
     try:
-        while flag_in_opcion == False:
-            opciones_input = int(input("INGRESE UNA OPCION: \n  1 - Añadir detalle de producto \n  2 - Eliminar detalles de producto \n  3 - Cancelar Pedido \n  4 - Finalizar Pedido \nRespuesta: "))
+        while flag_in_menu == False:
+            opciones_input = int(input("\nINGRESE UNA OPCION: \n  1 - Borrar tablas y crear nuevas tablas \n  2 - Dar de alta nuevo pedido \n  3 - Mostrar contenido de las tablas de la BD \n  4 - Salir del programa y cerrar conexión a BD \n\nRespuesta: "))
             while opciones_input not in [1, 2, 3, 4]:
                 print("Opción no válida. Intente de nuevo.")
-                opciones_input = int(input("INGRESE UNA OPCION: \n  1 - Añadir detalle de producto \n  2 - Eliminar detalles de producto \n  3 - Cancelar Pedido \n  4 - Finalizar Pedido \nRespuesta: "))
+                opciones_input = int(input("\nINGRESE UNA OPCION: \n  1 - Borrar tablas y crear nuevas tablas \n  2 - Dar de alta nuevo pedido \n  3 - Mostrar contenido de las tablas de la BD \n  4 - Salir del programa y cerrar conexión a BD \n\nRespuesta: "))
             switcher = {
-                1: "Añadir detalle de producto",
-                2: "Eliminar detalles de producto",
-                3: "Cancelar Pedido",
-                4: "Finalizar Pedido"
+                1: "Borrar tablas y crear nuevas tablas",
+                2: "Dar de alta nuevo pedido",
+                3: "Mostrar contenido de las tablas de la BD",
+                4: "Salir del programa y cerrar conexión a BD"
             }
             if opciones_input in switcher:
-                print(f"Ejecutando la opción: {switcher[opciones_input]}")
                 if opciones_input == 1:
-                    # Visualizar los productos disponibles en Stock
-                    try:
-                        print("\nProductos disponibles en Stock:")
-                        cursor.execute("SELECT Cproducto, Cantidad FROM Stock")
-                        productos = cursor.fetchall()
-                        for producto in productos:
-                            print(f"  - Cproducto: {producto[0]}, Cantidad disponible: {producto[1]}")
-                        print("")
+                    ## Informar sobre la creación de las tablas
+                    cursor = create_tables(conn)
 
-                        # Introducir y Verificar si el producto existe
-                        articulo = int(input("Ingrese el código del producto a añadir: "))
-                        cursor.execute("SELECT COUNT(*) FROM Stock WHERE Cproducto = :1", [articulo])
-                        if cursor.fetchone()[0] == 0:
-                            while True:
-                                print("El producto no existe. Seleccione otro producto.")
-                                articulo = int(input("Ingrese el código del producto a añadir: "))
-                                cursor.execute("SELECT COUNT(*) FROM Stock WHERE Cproducto = :1", [articulo])
-                                if cursor.fetchone()[0] > 0:
-                                    break
-                        else:
-                            print("Producto encontrado en Stock.")
-                        
-                        # Introducir y Verificar si hay suficiente stock
-                        cantidad_solicitada = int(input("Ingrese la cantidad a añadir: "))
-                        cursor.execute("SELECT Cantidad FROM Stock WHERE Cproducto = :1", [articulo])
-                        resultado = cursor.fetchone()
-                        if resultado[0] < cantidad_solicitada:
-                            while resultado[0] < cantidad_solicitada:
-                                print("No hay suficiente stock para este producto, Seleccione otra cantidad o producto.")
-                                cantidad_solicitada = int(input("Ingrese la cantidad a añadir: "))
-                        else:
-                            print("Cantidad disponible en stock.")
+                    ## Insertar 10 tuplas en la tabla Stock
+                    create_tublas_stock(conn, cursor)
+                    
+                if opciones_input == 2:         
+                    # Crear Pedido
+                    cursor.execute("SAVEPOINT antes_pedido")
+                    id_pedido = create_Pedido(ccliente, fecha_pedido)
+                    print(f"ID del nuevo pedido creado: {id_pedido}")
+                    flag_in_opcion = False
+                            
+                    # SAVEPOINT antes de insertar en Detalle_Pedido y OPCIONES de ejecucion
+                    if conn and cursor:
+                        cursor.execute("SAVEPOINT antes_detalle_pedido")
+                        try:
+                            while flag_in_opcion == False:
+                                opciones_input = int(input("\nINGRESE UNA OPCION: \n  1 - Añadir detalle de producto \n  2 - Eliminar detalles de producto \n  3 - Cancelar Pedido \n  4 - Finalizar Pedido \n\nRespuesta: "))
+                                while opciones_input not in [1, 2, 3, 4]:
+                                    print("Opción no válida. Intente de nuevo.")
+                                    opciones_input = int(input("\nINGRESE UNA OPCION: \n  1 - Añadir detalle de producto \n  2 - Eliminar detalles de producto \n  3 - Cancelar Pedido \n  4 - Finalizar Pedido \n\nRespuesta: "))
+                                switcher = {
+                                    1: "Añadir detalle de producto",
+                                    2: "Eliminar detalles de producto",
+                                    3: "Cancelar Pedido",
+                                    4: "Finalizar Pedido"
+                                }
+                                if opciones_input in switcher:
+                                    print(f"Ejecutando la opción: {switcher[opciones_input]}")
+                                    if opciones_input == 1:
+                                        # Visualizar los productos disponibles en Stock
+                                        try:
+                                            print("\nProductos disponibles en Stock:")
+                                            cursor.execute("SELECT Cproducto, Cantidad FROM Stock")
+                                            productos = cursor.fetchall()
+                                            for producto in productos:
+                                                print(f"  - Cproducto: {producto[0]}, Cantidad disponible: {producto[1]}")
+                                            print("")
 
-                        # Verifica si el producto ya está en Detalle_Pedido
-                        cursor2 = conn.cursor()
-                        cursor2.execute("SELECT COUNT(*) FROM Detalle_Pedido WHERE Cproducto = :1", [articulo])
-                        if cursor2.fetchone()[0] > 0:
-                            # Actualizar Cantidad en Detalle_Pedido
-                            cursor.execute("SELECT Cpedido FROM Pedido WHERE Ccliente = :1 ORDER BY Fecha_Pedido DESC", [ccliente])
-                            pedido_id = cursor.fetchone()[0]
-                            cursor2.execute("UPDATE Detalle_Pedido SET Cantidad = Cantidad + :1 WHERE Cpedido = :3 AND Cproducto = :2", [cantidad_solicitada, articulo, pedido_id])
-                            #conn.commit()
-                            print("Cantidad actualizada en Detalle_Pedido.")
-                            # Actualizar Stock
-                            cursor.execute("UPDATE Stock SET Cantidad = Cantidad - :1 WHERE Cproducto = :2", [cantidad_solicitada, articulo])
-                            #conn.commit()
-                            print("Detalle de pedido añadido exitosamente.")
-                        else:
-                            # Insertar en Detalle_Pedido
-                            cursor.execute("SELECT Cpedido FROM Pedido WHERE Ccliente = :1 ORDER BY Fecha_Pedido DESC", [ccliente])
-                            pedido_id = cursor.fetchone()[0]
-                            cursor.execute("INSERT INTO Detalle_Pedido (Cpedido, Cproducto, Cantidad) VALUES (:1, :2, :3)", [pedido_id, articulo, cantidad_solicitada])
-                            #conn.commit()
-                            # Actualizar Stock
-                            cursor.execute("UPDATE Stock SET Cantidad = Cantidad - :1 WHERE Cproducto = :2", [cantidad_solicitada, articulo])
-                            #conn.commit()
-                            print("Detalle de pedido añadido exitosamente.")
-                    except Exception as e:
-                        print(f"Error al recuperar productos de Stock: {e}")
-                if opciones_input == 2:
-                    try:
-                        #Eliminar Detalles de pedido en Detalle_Pedido (HACER UN ROLLBACK A SAVEPOINT ANTES_DETALLE_PEDIDO???)
-                        cursor.execute("ROLLBACK TO antes_detalle_pedido")
-                        conn.rollback()
-                        print("Detalles de pedido eliminados exitosamente mediante ROLLBACK al savepoint.")
+                                            # Introducir y Verificar si el producto existe
+                                            articulo = int(input("Ingrese el código del producto a añadir: "))
+                                            cursor.execute("SELECT COUNT(*) FROM Stock WHERE Cproducto = :1", [articulo])
+                                            if cursor.fetchone()[0] == 0:
+                                                while True:
+                                                    print("El producto no existe. Seleccione otro producto.")
+                                                    articulo = int(input("Ingrese el código del producto a añadir: "))
+                                                    cursor.execute("SELECT COUNT(*) FROM Stock WHERE Cproducto = :1", [articulo])
+                                                    if cursor.fetchone()[0] > 0:
+                                                        break
+                                            else:
+                                                print("Producto encontrado en Stock.")
+                                            
+                                            # Introducir y Verificar si hay suficiente stock
+                                            cantidad_solicitada = int(input("Ingrese la cantidad a añadir: "))
+                                            cursor.execute("SELECT Cantidad FROM Stock WHERE Cproducto = :1", [articulo])
+                                            resultado = cursor.fetchone()
+                                            if resultado[0] < cantidad_solicitada:
+                                                while resultado[0] < cantidad_solicitada:
+                                                    print("No hay suficiente stock para este producto, Seleccione otra cantidad o producto.")
+                                                    cantidad_solicitada = int(input("Ingrese la cantidad a añadir: "))
+                                            else:
+                                                print("Cantidad disponible en stock.")
 
-                        check_tables()
-                        
-                    except Exception as e:
-                        print(f"Error al eliminar detalle de pedido: {e}")
-                # Opciones 3 y 4 que salen del bucle
+                                            # Verifica si el producto ya está en Detalle_Pedido
+                                            cursor2 = conn.cursor()
+                                            cursor2.execute("SELECT COUNT(*) FROM Detalle_Pedido WHERE Cproducto = :1", [articulo])
+                                            if cursor2.fetchone()[0] > 0:
+                                                # Actualizar Cantidad en Detalle_Pedido
+                                                cursor.execute("SELECT Cpedido FROM Pedido WHERE Ccliente = :1 ORDER BY Fecha_Pedido DESC", [ccliente])
+                                                pedido_id = cursor.fetchone()[0]
+                                                cursor2.execute("UPDATE Detalle_Pedido SET Cantidad = Cantidad + :1 WHERE Cpedido = :3 AND Cproducto = :2", [cantidad_solicitada, articulo, pedido_id])
+                                                #conn.commit()
+                                                print("Cantidad actualizada en Detalle_Pedido.")
+                                                # Actualizar Stock
+                                                cursor.execute("UPDATE Stock SET Cantidad = Cantidad - :1 WHERE Cproducto = :2", [cantidad_solicitada, articulo])
+                                                #conn.commit()
+                                                print("Detalle de pedido añadido exitosamente.")
+                                            else:
+                                                # Insertar en Detalle_Pedido
+                                                cursor.execute("SELECT Cpedido FROM Pedido WHERE Ccliente = :1 ORDER BY Fecha_Pedido DESC", [ccliente])
+                                                pedido_id = cursor.fetchone()[0]
+                                                cursor.execute("INSERT INTO Detalle_Pedido (Cpedido, Cproducto, Cantidad) VALUES (:1, :2, :3)", [pedido_id, articulo, cantidad_solicitada])
+                                                #conn.commit()
+                                                # Actualizar Stock
+                                                cursor.execute("UPDATE Stock SET Cantidad = Cantidad - :1 WHERE Cproducto = :2", [cantidad_solicitada, articulo])
+                                                #conn.commit()
+                                                print("Detalle de pedido añadido exitosamente.")
+                                        except Exception as e:
+                                            print(f"Error al recuperar productos de Stock: {e}")
+                                    if opciones_input == 2:
+                                        try:
+                                            #Eliminar Detalles de pedido en Detalle_Pedido (HACER UN ROLLBACK A SAVEPOINT ANTES_DETALLE_PEDIDO???)
+                                            cursor.execute("ROLLBACK TO antes_detalle_pedido")
+                                            conn.rollback()
+                                            print("Detalles de pedido eliminados exitosamente mediante ROLLBACK al savepoint.")
+
+                                            check_tables()
+                                            
+                                        except Exception as e:
+                                            print(f"Error al eliminar detalle de pedido: {e}")
+                                    # Opciones 3 y 4 que salen del bucle y regresan al menú principal
+                                    if opciones_input == 3:
+                                        cursor.execute("ROLLBACK TO antes_pedido")
+                                        conn.rollback()
+                                        print("Pedido cancelado mediante ROLLBACK al savepoint.")
+                                        flag_in_opcion = True  
+                                    if opciones_input == 4:
+                                        conn.commit()
+                                        print("Pedido finalizado y cambios guardados mediante COMMIT.")
+                                        flag_in_opcion = True
+                                        opciones_input = None
+                        except Exception as e:
+                            print(f"Error al crear el savepoint: {e}")
                 if opciones_input == 3:
-                    cursor.execute("ROLLBACK TO antes_pedido")
-                    conn.rollback()
-                    print("Pedido cancelado mediante ROLLBACK al savepoint.")
-                    break
+                    try:
+                        print("\nMostrando el contenido de las tablas de la BD...\n")
+                        check_tables()
+                    except Exception as e:
+                            print(f"Error al mostrar las tablas: {e}")
                 if opciones_input == 4:
-                    conn.commit()
-                    print("Pedido finalizado y cambios guardados mediante COMMIT.")
-                    break
+                    try:
+                        conn.commit()
+                        print("\nCambios guardados mediante COMMIT. Fin de la conexión.")
+                        # Cerrar el cursor y Conexion:
+                        disconnect_cursor(cursor)
+                        disconnect_from_db(conn)
+                        break
+                    except Exception as e:
+                        print(f"Error al guardar los cambios y finalizar el programa: {e}")
     except Exception as e:
-        print(f"Error al crear el savepoint: {e}")
-
-
-
-
-# Esperar a que el usuario presione Enter antes de finalizar
-finalizacion = input("\nPresione Enter para finalizar todas las operaciones...")
-print(finalizacion)
-
-# Cerrar el cursor y Conexion:
-disconnect_cursor(cursor)
-disconnect_from_db(conn)
+        print(f"Error en el menu principal: {e}")
