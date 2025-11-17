@@ -1,4 +1,3 @@
-from datetime import date
 from datetime import datetime
 from os import getenv
 from dotenv import load_dotenv
@@ -109,7 +108,16 @@ def create_tublas_stock(conn, cursor):
 
 def create_Pedido(ccliente, fecha_pedido):
     try:
-        ccliente = int(input("Ingrese el código del cliente: "))
+        while ccliente == None :
+            entrada = input("Ingrese el codigo del cliente: ").strip()
+            if entrada == "":
+                print("ERROR")
+                continue
+            try:
+                ccliente = int(entrada)
+                break
+            except Exception as e:
+                print(f"Error al introducir el codigo del cliente: {e}")
         fecha_pedido = datetime.now()
         id_var = cursor.var(int)
         sql = "INSERT INTO Pedido (Ccliente, Fecha_Pedido) VALUES (:ccliente, :fecha_pedido) RETURNING Cpedido INTO :id_var"
@@ -163,10 +171,12 @@ if conn:
     opciones_input = None
     try:
         while flag_in_menu == False:
-            opciones_input = int(input("\nINGRESE UNA OPCION: \n  1 - Borrar tablas y crear nuevas tablas \n  2 - Dar de alta nuevo pedido \n  3 - Mostrar contenido de las tablas de la BD \n  4 - Salir del programa y cerrar conexión a BD \n\nRespuesta: "))
-            while opciones_input not in [1, 2, 3, 4]:
+            opciones_input = input("\nINGRESE UNA OPCION: \n  1 - Borrar tablas y crear nuevas tablas \n  2 - Dar de alta nuevo pedido \n  3 - Mostrar contenido de las tablas de la BD \n  4 - Salir del programa y cerrar conexión a BD \n\nRespuesta: ").strip()
+            while opciones_input not in [1, 2, 3, 4] or opciones_input == "":
                 print("Opción no válida. Intente de nuevo.")
-                opciones_input = int(input("\nINGRESE UNA OPCION: \n  1 - Borrar tablas y crear nuevas tablas \n  2 - Dar de alta nuevo pedido \n  3 - Mostrar contenido de las tablas de la BD \n  4 - Salir del programa y cerrar conexión a BD \n\nRespuesta: "))
+                opciones_input = input("\nINGRESE UNA OPCION: \n  1 - Borrar tablas y crear nuevas tablas \n  2 - Dar de alta nuevo pedido \n  3 - Mostrar contenido de las tablas de la BD \n  4 - Salir del programa y cerrar conexión a BD \n\nRespuesta: ").strip()
+                if opciones_input != "":
+                    opciones_input = int(opciones_input)
             switcher = {
                 1: "Borrar tablas y crear nuevas tablas",
                 2: "Dar de alta nuevo pedido",
