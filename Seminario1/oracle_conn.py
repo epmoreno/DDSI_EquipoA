@@ -189,6 +189,7 @@ if conn:
                     flag_in_opcion = False
                             
                     # SAVEPOINT antes de insertar en Detalle_Pedido y OPCIONES de ejecucion
+                    cursor.execute("SAVEPOINT antes_detalles_pedidos")
                     if conn and cursor:
                         try:
                             while flag_in_opcion == False:
@@ -260,15 +261,15 @@ if conn:
                                             print(f"Error al recuperar productos de Stock: {e}")
                                     if opciones_input == 2:
                                         try:
-                                            #Eliminar Detalles de pedido en Detalle_Pedido
-                                            cursor.execute("DELETE FROM Detalle_Pedido WHERE Cpedido = :1", [id_pedido])
+                                            #Eliminar Detalles de pedido en Detalle_Pedido a traves de rollback
+                                            cursor.execute("ROLLBACK TO antes_detalles_pedidos")
                                             print("Detalles de pedido eliminados exitosamente")
                                         except Exception as e:
                                             print(f"Error al eliminar detalle de pedido: {e}")
                                     # Opciones 3 y 4 que salen del bucle y regresan al menú principal
                                     if opciones_input == 3:
+                                        #Cancelar el pedido usando rollback
                                         cursor.execute("ROLLBACK TO antes_pedido")
-                                        conn.rollback()
                                         print("Pedido cancelado mediante ROLLBACK al savepoint.")
                                         flag_in_opcion = True  
                                     if opciones_input == 4:
