@@ -108,16 +108,19 @@ def create_tublas_stock(conn, cursor):
 
 def create_Pedido(ccliente, fecha_pedido):
     try:
-        while ccliente == None :
+        while True:
             entrada = input("Ingrese el codigo del cliente: ").strip()
-            if entrada == "":
-                print("ERROR")
+            if not entrada:
+                print("Error al introducir el codigo del cliente, no puede estar vacío.")
                 continue
             try:
                 ccliente = int(entrada)
+                if ccliente <= 0:
+                    print("Error al introducir el codigo del cliente: Debe ser un entero positivo.")
+                    continue
                 break
             except Exception as e:
-                print(f"Error al introducir el codigo del cliente: {e}")
+                print(f"Error al introducir el codigo del cliente: No es un entero válido.")
         fecha_pedido = datetime.now()
         id_var = cursor.var(int)
         sql = "INSERT INTO Pedido (Ccliente, Fecha_Pedido) VALUES (:ccliente, :fecha_pedido) RETURNING Cpedido INTO :id_var"
@@ -168,30 +171,37 @@ conn = connect_to_db(conn)
 if conn:
     cursor = conn.cursor()
     cursor.execute("SAVEPOINT principal")
+    opciones_input_menu = None
     opciones_input = None
     try:
         while flag_in_menu == False:
-            opciones_input = input("\nINGRESE UNA OPCION: \n  1 - Borrar tablas y crear nuevas tablas \n  2 - Dar de alta nuevo pedido \n  3 - Mostrar contenido de las tablas de la BD \n  4 - Salir del programa y cerrar conexión a BD \n\nRespuesta: ").strip()
-            while opciones_input not in [1, 2, 3, 4] or opciones_input == "":
-                print("Opción no válida. Intente de nuevo.")
-                opciones_input = input("\nINGRESE UNA OPCION: \n  1 - Borrar tablas y crear nuevas tablas \n  2 - Dar de alta nuevo pedido \n  3 - Mostrar contenido de las tablas de la BD \n  4 - Salir del programa y cerrar conexión a BD \n\nRespuesta: ").strip()
-                if opciones_input != "":
-                    opciones_input = int(opciones_input)
+            # Pedir opción del menú principal hasta que sea un entero válido (1-4)
+            while True:
+                entrada_menu = input("\nINGRESE UNA OPCION: \n  1 - Borrar tablas y crear nuevas tablas \n  2 - Dar de alta nuevo pedido \n  3 - Mostrar contenido de las tablas de la BD \n  4 - Salir del programa y cerrar conexión a BD \n\nRespuesta: ").strip()
+                try:
+                    opciones_input_menu = int(entrada_menu)
+                    if opciones_input_menu in [1, 2, 3, 4]:
+                        break
+                    else:
+                        print("Opción no válida. Intente de nuevo.")
+                except ValueError:
+                    print("Opción no válida. Intente de nuevo.")
             switcher = {
                 1: "Borrar tablas y crear nuevas tablas",
                 2: "Dar de alta nuevo pedido",
                 3: "Mostrar contenido de las tablas de la BD",
                 4: "Salir del programa y cerrar conexión a BD"
             }
-            if opciones_input in switcher:
-                if opciones_input == 1:
+            if opciones_input_menu in switcher:
+                if opciones_input_menu == 1:
                     ## Informar sobre la creación de las tablas
                     cursor = create_tables(conn)
 
                     ## Insertar 10 tuplas en la tabla Stock
                     create_tublas_stock(conn, cursor)
+
                     
-                if opciones_input == 2:         
+                if opciones_input_menu == 2:         
                     # Crear Pedido
                     cursor.execute("SAVEPOINT antes_pedido")
                     id_pedido = create_Pedido(ccliente, fecha_pedido)
@@ -203,10 +213,17 @@ if conn:
                     if conn and cursor:
                         try:
                             while flag_in_opcion == False:
-                                opciones_input = int(input("\nINGRESE UNA OPCION: \n  1 - Añadir detalle de producto \n  2 - Eliminar detalles de producto \n  3 - Cancelar Pedido \n  4 - Finalizar Pedido \n\nRespuesta: "))
-                                while opciones_input not in [1, 2, 3, 4]:
-                                    print("Opción no válida. Intente de nuevo.")
-                                    opciones_input = int(input("\nINGRESE UNA OPCION: \n  1 - Añadir detalle de producto \n  2 - Eliminar detalles de producto \n  3 - Cancelar Pedido \n  4 - Finalizar Pedido \n\nRespuesta: "))
+                                # Pedir opción del submenú hasta que sea un entero válido (1-4)
+                                while True:
+                                    entrada_sub = input("\nINGRESE UNA OPCION: \n  1 - Añadir detalle de producto \n  2 - Eliminar detalles de producto \n  3 - Cancelar Pedido \n  4 - Finalizar Pedido \n\nRespuesta: ").strip()
+                                    try:
+                                        opciones_input = int(entrada_sub)
+                                        if opciones_input in [1, 2, 3, 4]:
+                                            break
+                                        else:
+                                            print("Opción no válida. Intente de nuevo.")
+                                    except ValueError:
+                                        print("Opción no válida. Intente de nuevo.")
                                 switcher = {
                                     1: "Añadir detalle de producto",
                                     2: "Eliminar detalles de producto",
@@ -227,7 +244,19 @@ if conn:
                                             print("")
 
                                             # Introducir y Verificar si el producto existe
-                                            articulo = int(input("Ingrese el código del producto a añadir: "))
+                                            while True:
+                                                articulo = input("Ingrese el código del producto a añadir: ").strip()
+                                                if not articulo:
+                                                    print("El código del producto no puede estar vacío. Intente de nuevo.")
+                                                    continue
+                                                try:
+                                                    articulo = int(articulo)
+                                                    if articulo <= 0:
+                                                        print("Error: El código del producto debe ser un entero positivo. Intente de nuevo.")
+                                                        continue
+                                                    break
+                                                except ValueError:
+                                                    print("Error: El código del producto debe ser un entero válido. Intente de nuevo.")
                                             cursor.execute("SELECT COUNT(*) FROM Stock WHERE Cproducto = :1", [articulo])
                                             if cursor.fetchone()[0] == 0:
                                                 while True:
@@ -240,7 +269,20 @@ if conn:
                                                 print("Producto encontrado en Stock.")
                                             
                                             # Introducir y Verificar si hay suficiente stock
-                                            cantidad_solicitada = int(input("Ingrese la cantidad a añadir: "))
+                                            while True:
+                                                cantidad_solicitada = input("Ingrese la cantidad a añadir: ").strip()
+                                                if not cantidad_solicitada:
+                                                    print("La cantidad no puede estar vacía. Intente de nuevo.")
+                                                    continue
+                                                try:
+                                                    cantidad_solicitada = int(cantidad_solicitada)
+                                                    if cantidad_solicitada <= 0:
+                                                        print("Error: La cantidad debe ser un entero positivo. Intente de nuevo.")
+                                                        continue
+                                                    break
+                                                except ValueError:
+                                                    print("Error: La cantidad debe ser un entero válido. Intente de nuevo.")
+
                                             cursor.execute("SELECT Cantidad FROM Stock WHERE Cproducto = :1", [articulo])
                                             resultado = cursor.fetchone()
                                             if resultado[0] < cantidad_solicitada:
@@ -289,13 +331,13 @@ if conn:
                                         opciones_input = None
                         except Exception as e:
                             print(f"Error al crear el savepoint: {e}")
-                if opciones_input == 3:
+                if opciones_input_menu == 3:
                     try:
                         print("\nMostrando el contenido de las tablas de la BD...\n")
                         check_tables()
                     except Exception as e:
                             print(f"Error al mostrar las tablas: {e}")
-                if opciones_input == 4:
+                if opciones_input_menu == 4:
                     try:
                         conn.commit()
                         print("\nCambios guardados mediante COMMIT. Fin de la conexión.")
