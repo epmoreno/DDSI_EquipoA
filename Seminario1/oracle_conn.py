@@ -38,17 +38,19 @@ def disconnect_from_db(conn):
     try:
         if conn:
             conn.close()
-            print("Conexión cerrada exitosamente")
+            return True
     except Exception as e:
         print(f"Error al desconectar de la base de datos: {e}")
+        return False
 
 def disconnect_cursor(cursor):
     try:
         if cursor:
             cursor.close()
-            print("Cursor cerrado exitosamente")
+            return True
     except Exception as e:
         print(f"Error al cerrar el cursor: {e}")
+        return False
 
 def create_tables(conn):
     try:
@@ -58,27 +60,22 @@ def create_tables(conn):
         cursor.execute("SELECT COUNT(*) FROM USER_TABLES WHERE TABLE_NAME = 'DETALLE_PEDIDO'")
         if cursor.fetchone()[0] > 0:
             cursor.execute("DROP TABLE Detalle_Pedido PURGE")
-            print("Tabla 'Detalle_Pedido' eliminada")
 
         # Se elimina Stock si existe
         cursor.execute("SELECT COUNT(*) FROM USER_TABLES WHERE TABLE_NAME = 'STOCK'")
         if cursor.fetchone()[0] > 0:
             cursor.execute("DROP TABLE Stock PURGE")
-            print("Tabla 'Stock' eliminada")
 
         # Se elimina Pedido si existe
         cursor.execute("SELECT COUNT(*) FROM USER_TABLES WHERE TABLE_NAME = 'PEDIDO'")
         if cursor.fetchone()[0] > 0:
             cursor.execute("DROP TABLE Pedido PURGE")
-            print("Tabla 'Pedido' eliminada")
 
         # Crea la tabla Stock
         cursor.execute("CREATE TABLE Stock (Cproducto INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY, Cantidad INTEGER)")
-        print("Tabla 'Stock' creada exitosamente")
 
         # Crea la tabla Pedido
         cursor.execute("CREATE TABLE Pedido (Cpedido INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY, Ccliente INTEGER, Fecha_Pedido DATE)")
-        print("Tabla 'Pedido' creada exitosamente")
 
         # Crea la tabla Detalle_Pedido
         cursor.execute("""CREATE TABLE Detalle_Pedido (
@@ -89,7 +86,6 @@ def create_tables(conn):
             FOREIGN KEY (Cpedido) REFERENCES Pedido(Cpedido),
             FOREIGN KEY (Cproducto) REFERENCES Stock(Cproducto)
         )""")
-        print("Tabla 'Detalle_Pedido' creada exitosamente")
         # Devolver el cursor para uso posterior
         return cursor
     except oracledb.DatabaseError as e:
@@ -102,7 +98,6 @@ def create_tublas_stock(conn, cursor):
             cantidad = (i+1)*10
             cursor.execute("INSERT INTO Stock (Cantidad) VALUES (:1)", [cantidad])
         conn.commit()
-        print("10 tuplas insertadas en la tabla Stock exitosamente")
     except Exception as e:
         print(f"Error al insertar datos en la tabla Stock: {e}")
 
@@ -174,6 +169,8 @@ if conn:
     opciones_input_menu = None
     opciones_input = None
     try:
+        cursor = create_tables(conn)
+        create_tublas_stock(conn, cursor)
         while flag_in_menu == False:
             # Pedir opción del menú principal hasta que sea un entero válido (1-4)
             while True:
@@ -195,6 +192,7 @@ if conn:
             if opciones_input_menu in switcher:
                 if opciones_input_menu == 1:
                     ## Informar sobre la creación de las tablas
+                    print("Borrando y creando las tablas de nuevo ...")
                     cursor = create_tables(conn)
 
                     ## Insertar 10 tuplas en la tabla Stock
@@ -326,7 +324,7 @@ if conn:
                                         flag_in_opcion = True  
                                     if opciones_input == 4:
                                         conn.commit()
-                                        print("Pedido finalizado y cambios guardados mediante COMMIT.")
+                                        print("Pedido finalizado y cambios guardados.")
                                         flag_in_opcion = True
                                         opciones_input = None
                         except Exception as e:
@@ -340,10 +338,11 @@ if conn:
                 if opciones_input_menu == 4:
                     try:
                         conn.commit()
-                        print("\nCambios guardados mediante COMMIT. Fin de la conexión.")
+                        print("\n[Cambios guardados.]")
+                        print("\nFinalizando conexión . . . .")
                         # Cerrar el cursor y Conexion:
-                        disconnect_cursor(cursor)
-                        disconnect_from_db(conn)
+                        if disconnect_cursor(cursor) and disconnect_from_db(conn):
+                            print("Conexion cerrada exitosamente")
                         break
                     except Exception as e:
                         print(f"Error al guardar los cambios y finalizar el programa: {e}")
