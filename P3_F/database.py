@@ -54,6 +54,15 @@ class OracleDBConn:
                 FOREIGN KEY (Cpedido) REFERENCES Pedido(Cpedido),
                 FOREIGN KEY (Cproducto) REFERENCES Stock(Cproducto)
             )""")
+            self.cursor.execute(""" CREATE OR REPLACE TRIGGER trg_pedido_fecha
+                BEFORE INSERT ON Pedido
+                FOR EACH ROW
+                BEGIN
+                    IF :NEW.Fecha_Pedido IS NULL THEN
+                        :NEW.Fecha_Pedido := SYSDATE;
+                    END IF;
+                END;
+            """)
 
             # Elementos Basicos
             for i in range(10):
@@ -68,12 +77,11 @@ class OracleDBConn:
             raise e
     
     def crear_pedido_cabecera(self, ccliente):
-        fecha_pedido = datetime.now()
         id_var = self.cursor.var(int)
-        sql = """INSERT INTO Pedido (Ccliente, Fecha_Pedido) 
-                VALUES (:ccliente, :fecha_pedido) 
+        sql = """INSERT INTO Pedido (Ccliente) 
+                VALUES (:ccliente) 
                 RETURNING Cpedido INTO :id_var"""
-        self.cursor.execute(sql, ccliente=ccliente, fecha_pedido=fecha_pedido, id_var=id_var)
+        self.cursor.execute(sql, ccliente=ccliente, id_var=id_var)
         return id_var.getvalue()[0]
         
     def obtener_stock(self):
