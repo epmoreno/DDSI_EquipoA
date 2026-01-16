@@ -1,0 +1,40 @@
+------------------------------------------------------------------------------------------------------------------------
+
+[2026-01-16 14:22:01 #1 store] 
+Database '/Users/enriquepinazomoreno/Documents/IGN_IFM_UGR-25_26/PrimerSemestre/DDSI/2-Seminarios/DDSI_EquipoA/P4/OODB/oodb.odb' is opened by 2379@MacBook-Air-de-Enrique.local
+
+[2026-01-16 14:22:01 #2 store] 
+Configuration path: ?
+
+[2026-01-16 14:22:01 #3 type] 
+Type Persona is not enhanced.
+
+[2026-01-16 14:22:01 #4 type] 
+Type Stock is not enhanced.
+
+[2026-01-16 14:22:01 #5 type] 
+Type Pedido is not enhanced.
+
+[2026-01-16 14:22:01 #6 store] 
+Database '/Users/enriquepinazomoreno/Documents/IGN_IFM_UGR-25_26/PrimerSemestre/DDSI/2-Seminarios/DDSI_EquipoA/P4/OODB/oodb.odb' is closed by 2379@MacBook-Air-de-Enrique.local
+
+------------------------------------------------------------------------------------------------------------------------
+
+[2026-01-16 14:22:14 #1 store] 
+Database '/Users/enriquepinazomoreno/Documents/IGN_IFM_UGR-25_26/PrimerSemestre/DDSI/2-Seminarios/DDSI_EquipoA/P4/OODB/oodb.odb' is opened by 2448@MacBook-Air-de-Enrique.local
+
+[2026-01-16 14:22:14 #2 store] 
+Configuration path: ?
+
+[2026-01-16 14:22:14 #3 type] 
+Type Persona is not enhanced.
+
+[2026-01-16 14:22:14 #4 type] 
+Type Stock is not enhanced.
+
+[2026-01-16 14:22:14 #5 type] 
+Type Pedido is not enhanced.
+
+[2026-01-16 14:22:14 #6 store] 
+Database '/Users/enriquepinazomoreno/Documents/IGN_IFM_UGR-25_26/PrimerSemestre/DDSI/2-Seminarios/DDSI_EquipoA/P4/OODB/oodb.odb' is closed by 2448@MacBook-Air-de-Enrique.local
+

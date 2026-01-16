@@ -124,9 +124,9 @@ public class App {
         Stock articulo1_2 = queryStock.getResultList().get(2);
         Stock articulo2_2 = queryStock.getResultList().get(3);
         if(app.inicializarPedidos(em, cliente2, articulo1_2, 15))
-            {System.out.println("Se ha hecho el pedido de: "+articulo1_2.getNombre()+" con Exito!!. CLiente : "+cliente2.getNombre()+" Cantidad: 5\n");}
+            {System.out.println("Se ha hecho el pedido de: "+articulo1_2.getNombre()+" con Exito!!. CLiente : "+cliente2.getNombre()+" Cantidad: 15\n");}
         if(app.inicializarPedidos(em, cliente2, articulo2_2, 13))
-            {System.out.println("Se ha hecho el pedido de: "+articulo2_2.getNombre()+" con Exito!!. CLiente : "+cliente2.getNombre()+" Cantidad: 20\n");}
+            {System.out.println("Se ha hecho el pedido de: "+articulo2_2.getNombre()+" con Exito!!. CLiente : "+cliente2.getNombre()+" Cantidad: 13\n");}
         
         TypedQuery<Pedido> queryPedido = em.createQuery("SELECT o FROM Pedido o", Pedido.class);
         app.mostrarContenido(queryPedido);
