@@ -46,6 +46,13 @@ class OracleDBConn:
                 Ccliente INTEGER, 
                 Fecha_Pedido DATE
             )""")
+            self.cursor.execute("""CREATE TABLE Auditoria_Stock (
+                Id_Audit INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                Cproducto INTEGER,
+                Cantidad_Anterior INTEGER,
+                Cantidad_Nueva INTEGER,
+                Fecha_Modificacion DATE DEFAULT SYSDATE
+            )""")
             self.cursor.execute("""CREATE TABLE Detalle_Pedido (
                 Cpedido INTEGER,
                 Cproducto INTEGER,
@@ -54,12 +61,49 @@ class OracleDBConn:
                 FOREIGN KEY (Cpedido) REFERENCES Pedido(Cpedido),
                 FOREIGN KEY (Cproducto) REFERENCES Stock(Cproducto)
             )""")
+
+
+            # Triggers
+            
+            # Trigger para asignar fecha automaticamente
             self.cursor.execute(""" CREATE OR REPLACE TRIGGER trg_pedido_fecha
                 BEFORE INSERT ON Pedido
                 FOR EACH ROW
                 BEGIN
                     IF :NEW.Fecha_Pedido IS NULL THEN
                         :NEW.Fecha_Pedido := SYSDATE;
+                    END IF;
+                END;
+            """)
+            # Trigger para auditoria y restauracion de stock
+            self.cursor.execute("""
+                CREATE OR REPLACE TRIGGER trg_auditoria_stock
+                AFTER UPDATE OF Cantidad ON Stock
+                FOR EACH ROW
+                BEGIN
+                    INSERT INTO Auditoria_Stock (Cproducto, Cantidad_Anterior, Cantidad_Nueva)
+                    VALUES (:OLD.Cproducto, :OLD.Cantidad, :NEW.Cantidad);
+                END;
+            """)
+            # Trigger para restaurar stock al eliminar detalle pedido
+            self.cursor.execute("""
+                CREATE OR REPLACE TRIGGER trg_restaurar_stock
+                AFTER DELETE ON Detalle_Pedido
+                FOR EACH ROW
+                BEGIN
+                    UPDATE Stock
+                    SET Cantidad = Cantidad + :OLD.Cantidad
+                    WHERE Cproducto = :OLD.Cproducto;
+                END;
+            """)
+            # Trigger para validar cantidad en detalle pedido
+            self.cursor.execute("""
+                CREATE OR REPLACE TRIGGER trg_validar_cantidad
+                BEFORE INSERT OR UPDATE ON Detalle_Pedido
+                FOR EACH ROW
+                BEGIN
+                    IF :NEW.Cantidad <= 0 THEN
+                        RAISE_APPLICATION_ERROR(-20001, 'La cantidad debe ser mayor a 0');
                     END IF;
                 END;
             """)
