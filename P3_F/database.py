@@ -29,7 +29,7 @@ class OracleDBConn:
     def reset_tablas(self):
         try:
             # Eliminacion
-            tablas = ['DETALLE_PEDIDO', 'STOCK', 'PEDIDO']
+            tablas = ['DETALLE_PEDIDO', 'STOCK', 'PEDIDO', 'AUDITORIA_STOCK']
             for tabla in tablas:
                 try:
                     self.cursor.execute(f"DROP TABLE {tabla} PURGE")
@@ -64,7 +64,7 @@ class OracleDBConn:
 
 
             # Triggers
-            
+
             # Trigger para asignar fecha automaticamente
             self.cursor.execute(""" CREATE OR REPLACE TRIGGER trg_pedido_fecha
                 BEFORE INSERT ON Pedido
